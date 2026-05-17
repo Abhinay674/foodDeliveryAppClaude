@@ -1,154 +1,189 @@
 /*
- * HOW THIS FILE WORKS (simple explanation):
+ * ──────────────────────────────────────────────────────────────
+ * MULTI-AGENT SYSTEM  (Rule-Based — No API Key Required)
+ * ──────────────────────────────────────────────────────────────
  *
- * This file has 3 functions, each is one "agent".
- * Each agent = one Claude API call with a specific job.
+ * 3 agents work in sequence. Each agent:
+ *   1. Receives input (JSON)
+ *   2. Does its job
+ *   3. Returns STANDARD JSON output
+ *   4. Output is passed to the next agent
  *
- * Agent 1 - intentAgent:
- *   INPUT:  "My order is delayed and I want refund"   ← user's raw message
+ * AGENT 1 — Intent Agent
+ *   INPUT : "My order is delayed and I want a refund"   (raw text)
+ *   JOB   : Understand what the problem is + what user wants
  *   OUTPUT: { issueType: "delayed_order", requestedAction: "refund" }
  *
- * Agent 2 - policyAgent:
- *   INPUT:  { issueType: "delayed_order", requestedAction: "refund" }  ← from Agent 1
- *   OUTPUT: { actionAllowed: true, actionType: "refund", reason: "Order delayed" }
+ * AGENT 2 — Policy Agent
+ *   INPUT : { issueType: "delayed_order", requestedAction: "refund" }
+ *   JOB   : Check company rules → is this action allowed?
+ *   OUTPUT: { actionAllowed: true, actionType: "refund", reason: "..." }
  *
- * Agent 3 - resolutionAgent:
- *   INPUT:  result from Agent 1 + result from Agent 2
+ * AGENT 3 — Resolution Agent
+ *   INPUT : output of Agent 1 + output of Agent 2
+ *   JOB   : Generate final friendly reply for customer
  *   OUTPUT: { message: "Your refund has been approved." }
- *
- * KEY IDEA: All 3 agents return SAME structure pattern → easy to pass between them.
+ * ──────────────────────────────────────────────────────────────
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
-
-// Helper: Claude sometimes adds text before/after JSON.
-// This function safely extracts just the JSON part.
-function extractJSON(text) {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Agent returned no valid JSON: ' + text);
-  return JSON.parse(match[0]);
-}
-
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // AGENT 1: INTENT AGENT
-// Job: Read the user's message → find out:
-//   (a) what went wrong  → issueType
-//   (b) what user wants  → requestedAction
-// ─────────────────────────────────────────────
-async function intentAgent(userMessage) {
-  const prompt = `You are an Intent Agent for a food delivery support system.
+// How it works: scan the user's message for keywords
+//   → match keywords to known issue types and actions
+// ─────────────────────────────────────────────────────────────
+function intentAgent(userMessage) {
+  const msg = userMessage.toLowerCase();
 
-Your job: Read the customer message and identify:
-1. issueType  → one of: delayed_order, wrong_item, missing_item, payment_issue, other
-2. requestedAction → one of: refund, replacement, cancellation, other
+  // ── Step A: Detect the issue type ──────────────────────────
+  // We check keywords in order of priority
+  let issueType = 'other'; // default if nothing matches
 
-Return ONLY valid JSON, no extra text:
+  if (msg.includes('delay') || msg.includes('late') || msg.includes('not arrived') ||
+      msg.includes('waiting') || msg.includes('not delivered') || msg.includes('taking long')) {
+    issueType = 'delayed_order';
 
-{
-  "issueType": "",
-  "requestedAction": ""
+  } else if (msg.includes('wrong') || msg.includes('different') || msg.includes('instead') ||
+             msg.includes('incorrect') || msg.includes('not what i ordered') || msg.includes('ordered') && msg.includes('got')) {
+    issueType = 'wrong_item';
+
+  } else if (msg.includes('missing') || msg.includes('not received') || msg.includes('incomplete') ||
+             msg.includes('did not receive') || msg.includes('not in bag') || msg.includes('left out')) {
+    issueType = 'missing_item';
+
+  } else if (msg.includes('charged') || msg.includes('payment') || msg.includes('double') ||
+             msg.includes('overcharged') || msg.includes('extra charge') || msg.includes('billed') ||
+             msg.includes('deducted') || msg.includes('twice')) {
+    issueType = 'payment_issue';
+  }
+
+  // ── Step B: Detect what action the user wants ──────────────
+  let requestedAction = 'other'; // default
+
+  if (msg.includes('refund') || msg.includes('money back') || msg.includes('return money') ||
+      msg.includes('get my money') || msg.includes('reimburse')) {
+    requestedAction = 'refund';
+
+  } else if (msg.includes('replace') || msg.includes('replacement') || msg.includes('resend') ||
+             msg.includes('send again') || msg.includes('new order') || msg.includes('another')) {
+    requestedAction = 'replacement';
+
+  } else if (msg.includes('cancel') || msg.includes('cancellation')) {
+    requestedAction = 'cancellation';
+
+  } else {
+    // If user didn't say what they want, INFER it from the issue type
+    // (this is smart default behaviour)
+    if (issueType === 'delayed_order')  requestedAction = 'refund';
+    if (issueType === 'payment_issue')  requestedAction = 'refund';
+    if (issueType === 'wrong_item')     requestedAction = 'replacement';
+    if (issueType === 'missing_item')   requestedAction = 'replacement';
+  }
+
+  // Return standard JSON — same structure every time
+  return { issueType, requestedAction };
 }
 
-Customer Message: "${userMessage}"`;
-
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 150,
-    messages: [{ role: 'user', content: prompt }]
-  });
-
-  return extractJSON(response.content[0].text);
-}
-
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // AGENT 2: POLICY AGENT
-// Job: Check company rules → decide if action is allowed
+// How it works: look up the issueType in the rules table
+//   → return what action is allowed
 //
-// RULES:
-//   delayed_order   → refund allowed
-//   wrong_item      → replacement allowed
-//   missing_item    → replacement allowed
-//   payment_issue   → refund allowed
-//   other           → needs_review (not allowed automatically)
-//
-// Always returns SAME structure:
-//   { actionAllowed, actionType, reason }
-// ─────────────────────────────────────────────
-async function policyAgent(intentResult) {
-  const prompt = `You are a Policy Agent for a food delivery support system.
+// RULES TABLE:
+//   delayed_order  → refund allowed
+//   wrong_item     → replacement allowed
+//   missing_item   → replacement allowed
+//   payment_issue  → refund allowed
+//   other          → needs manual review
+// ─────────────────────────────────────────────────────────────
+function policyAgent(intentResult) {
+  const { issueType } = intentResult;
 
-Company Rules:
-- delayed_order   → refund is allowed
-- wrong_item      → replacement is allowed
-- missing_item    → replacement is allowed
-- payment_issue   → refund is allowed
-- other           → not allowed automatically, set actionAllowed: false, actionType: "needs_review"
+  // All rules in one place — easy to update later
+  const POLICY_RULES = {
+    delayed_order: {
+      actionAllowed: true,
+      actionType: 'refund',
+      reason: 'Order was delayed beyond acceptable delivery time'
+    },
+    wrong_item: {
+      actionAllowed: true,
+      actionType: 'replacement',
+      reason: 'Wrong item was delivered to customer'
+    },
+    missing_item: {
+      actionAllowed: true,
+      actionType: 'replacement',
+      reason: 'Item was missing from the order'
+    },
+    payment_issue: {
+      actionAllowed: true,
+      actionType: 'refund',
+      reason: 'Payment discrepancy detected in customer account'
+    },
+    other: {
+      actionAllowed: false,
+      actionType: 'needs_review',
+      reason: 'Issue requires manual review by support team'
+    }
+  };
 
-Customer Issue (from Intent Agent):
-${JSON.stringify(intentResult, null, 2)}
+  // Look up the rule — if issue type not found, use 'other'
+  const rule = POLICY_RULES[issueType] || POLICY_RULES['other'];
 
-Based on the rules, decide what action is allowed.
-
-Return ONLY valid JSON, no extra text:
-
-{
-  "actionAllowed": false,
-  "actionType": "",
-  "reason": ""
-}`;
-
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 150,
-    messages: [{ role: 'user', content: prompt }]
-  });
-
-  return extractJSON(response.content[0].text);
+  // Return standard JSON — same structure every time
+  return {
+    actionAllowed: rule.actionAllowed,
+    actionType: rule.actionType,
+    reason: rule.reason
+  };
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // AGENT 3: RESOLUTION AGENT
-// Job: Take results from Agent 1 + Agent 2
-//      → write a friendly final reply to the customer
-//
-// This agent sees the full picture:
-//   - what the customer's issue is (from intentAgent)
-//   - what action is allowed (from policyAgent)
-// Then writes one clear message for the customer.
-// ─────────────────────────────────────────────
-async function resolutionAgent(intentResult, policyResult) {
-  const prompt = `You are a Resolution Agent for a food delivery support system.
+// How it works: combine intentResult + policyResult
+//   → pick the right message template
+//   → return final customer-facing message
+// ─────────────────────────────────────────────────────────────
+function resolutionAgent(intentResult, policyResult) {
+  const { issueType } = intentResult;
+  const { actionAllowed, actionType } = policyResult;
 
-You have two pieces of information:
+  // If policy says action is NOT allowed → escalate to human
+  if (!actionAllowed) {
+    return {
+      message: "We're sorry about your experience. Your case has been escalated to our support team who will review and get back to you within 24 hours."
+    };
+  }
 
-1. Customer Issue (from Intent Agent):
-${JSON.stringify(intentResult, null, 2)}
+  // Message templates for each scenario
+  // Organised as: MESSAGES[actionType][issueType]
+  const MESSAGES = {
+    refund: {
+      delayed_order: "We sincerely apologise for the delay! Your full refund has been approved and will be credited to your account within 3–5 business days.",
+      payment_issue: "We've identified the payment issue. Your refund has been processed and will reflect in your account within 3–5 business days.",
+      default:       "Your refund request has been approved and will be credited to your account within 3–5 business days."
+    },
+    replacement: {
+      wrong_item:   "We're sorry you received the wrong item! A replacement order has been initiated and will be delivered to you at no extra charge.",
+      missing_item: "We apologise for the missing item! A replacement has been dispatched and will reach you as soon as possible.",
+      default:      "Your replacement order has been initiated and will be delivered to you shortly."
+    },
+    cancellation: {
+      default: "Your order cancellation has been processed successfully. Any applicable refund will be credited within 3–5 business days."
+    },
+    needs_review: {
+      default: "Your case has been reviewed. Our support team will contact you within 24 hours with a resolution."
+    }
+  };
 
-2. Policy Decision (from Policy Agent):
-${JSON.stringify(policyResult, null, 2)}
+  // Pick the right message:
+  // First try specific message for this issue type,
+  // then fall back to the default for this action type
+  const actionMessages = MESSAGES[actionType] || MESSAGES['needs_review'];
+  const message = actionMessages[issueType] || actionMessages['default'];
 
-Write a friendly, professional reply to the customer.
-- If actionAllowed is true: confirm the action clearly.
-- If actionAllowed is false: apologize and say a human agent will review.
-- Keep it short (1-2 sentences).
-
-Return ONLY valid JSON, no extra text:
-
-{
-  "message": ""
-}`;
-
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
-    messages: [{ role: 'user', content: prompt }]
-  });
-
-  return extractJSON(response.content[0].text);
+  // Return standard JSON — same structure every time
+  return { message };
 }
 
 module.exports = { intentAgent, policyAgent, resolutionAgent };
