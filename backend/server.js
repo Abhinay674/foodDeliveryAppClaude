@@ -6,6 +6,7 @@ require('dotenv').config();
 const foodRoutes = require('./routes/foodRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const supportRoutes = require('./routes/supportRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -16,19 +17,14 @@ app.use(cors({
 }));
 app.use(express.json());
 
+app.use('/api/auth', authRoutes);
 app.use('/api/foods', foodRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/support', supportRoutes);
 
-app.get('/', (req, res) => {
-  res.json({ message: 'FoodRush API is running!' });
-});
+app.get('/', (req, res) => res.json({ message: 'FoodRush API is running!' }));
+app.get('/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date() });
-});
-
-// Seed endpoint — clears and re-seeds food data
 app.post('/api/seed', async (req, res) => {
   try {
     const Food = require('./models/Food');
@@ -42,7 +38,6 @@ app.post('/api/seed', async (req, res) => {
 });
 
 let isConnected = false;
-
 const connectDB = async () => {
   if (isConnected) return;
   try {
@@ -53,12 +48,9 @@ const connectDB = async () => {
     console.error('MongoDB connection error:', error.message);
   }
 };
-
 connectDB();
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 module.exports = app;

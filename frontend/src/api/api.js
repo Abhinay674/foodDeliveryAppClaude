@@ -27,4 +27,10 @@ export const removeFromCart = (sessionId, foodId) =>
   api.delete(`/api/cart/${sessionId}/${foodId}`);
 export const clearCart = (sessionId) => api.delete(`/api/cart/${sessionId}`);
 
+// Auth
+export const registerUser = (data) =>
+  api.post('/api/auth/register', data).then((r) => r.data);
+export const loginUser = (data) =>
+  api.post('/api/auth/login', data).then((r) => r.data);
+
 export default api;
