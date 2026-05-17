@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const TrashIcon = () => (
@@ -12,6 +13,7 @@ const TrashIcon = () => (
 const CartItem = ({ item }) => {
   const { updateItem, removeItem } = useCart();
   const [updating, setUpdating] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleUpdate = async (newQty) => {
     setUpdating(true);
@@ -22,8 +24,6 @@ const CartItem = ({ item }) => {
     }
     setUpdating(false);
   };
-
-  const [imgError, setImgError] = useState(false);
 
   return (
     <div className="bg-white rounded-2xl p-4 flex gap-4 items-center shadow-sm">
@@ -82,10 +82,15 @@ const CartItem = ({ item }) => {
 
 const Cart = () => {
   const { cart, loading, cartTotal, emptyCart } = useCart();
+  const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
   const [ordered, setOrdered] = useState(false);
 
   const handleOrder = async () => {
+    if (!isLoggedIn) {
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
     await emptyCart();
     setOrdered(true);
   };
@@ -208,17 +213,28 @@ const Cart = () => {
               </div>
             </div>
 
+            {/* Login nudge when not logged in */}
+            {!isLoggedIn && (
+              <div className="mt-4 p-3 bg-orange-50 border border-orange-100 rounded-xl text-sm text-orange-700 text-center">
+                <span className="font-medium">Please log in to place an order</span>
+              </div>
+            )}
+
             <button
               onClick={handleOrder}
-              className="w-full mt-5 text-white font-bold py-3.5 rounded-full transition-all hover:opacity-90 active:scale-95 shadow-md"
+              className="w-full mt-4 text-white font-bold py-3.5 rounded-full transition-all hover:opacity-90 active:scale-95 shadow-md"
               style={{ backgroundColor: '#FF5200' }}
             >
-              Place Order · ₹{(grandTotal * 83).toFixed(0)}
+              {isLoggedIn
+                ? `Place Order · ₹${(grandTotal * 83).toFixed(0)}`
+                : 'Login to Place Order'}
             </button>
 
-            <p className="text-xs text-gray-400 text-center mt-3">
-              🔒 Safe & secure checkout
-            </p>
+            {isLoggedIn && (
+              <p className="text-xs text-gray-400 text-center mt-3">
+                🔒 Safe & secure checkout
+              </p>
+            )}
           </div>
         </div>
       </div>
