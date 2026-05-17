@@ -1,128 +1,127 @@
+// frontend/src/components/Navbar.jsx
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
+const ORANGE = '#FF5200';
+
 const CartIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+  <svg
+    className="w-6 h-6"
+    fill="none"
+    stroke={ORANGE}
+    strokeWidth={2}
+    viewBox="0 0 24 24"
+  >
+    <circle cx="9" cy="21" r="1" />
+    <circle cx="20" cy="21" r="1" />
+    <path
+      d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const SearchIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  <svg
+    className="w-5 h-5"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    viewBox="0 0 24 24"
+  >
+    <circle cx="11" cy="11" r="8" />
+    <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
   </svg>
 );
 
-const Navbar = ({ searchQuery, setSearchQuery }) => {
-  const { cartCount } = useCart();
+const Navbar = () => {
+  const { cartItems } = useCart();
   const { isLoggedIn, user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/foods?search=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleSearch(e);
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4 h-16">
-          {/* Logo */}
-          <Link to="/" className="flex-shrink-0">
-            <div className="flex items-center gap-1">
-              <span className="text-2xl font-bold" style={{ color: '#FF5200' }}>
-                Food
-              </span>
-              <span className="text-2xl font-bold text-gray-800">Rush</span>
-            </div>
-          </Link>
-
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="flex-1 max-w-xl">
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <SearchIcon />
-              </div>
-              <input
-                type="text"
-                placeholder="Search for food..."
-                value={searchQuery || ''}
-                onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-full bg-gray-50 text-sm focus:outline-none focus:border-orange-400 focus:bg-white transition-all"
-              />
-            </div>
-          </form>
-
-          {/* Support Button */}
-          <Link to="/support" className="flex-shrink-0 hidden sm:block">
-            <div className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 text-sm font-medium transition-all hover:bg-gray-50" style={{ borderColor: '#FF5200', color: '#FF5200' }}>
-              <span>🤖</span>
-              <span>Support</span>
-            </div>
-          </Link>
-
-          {/* Auth Section */}
-          {isLoggedIn ? (
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <span className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 font-medium">
-                <span className="text-base">👤</span>
-                <span>{user?.username}</span>
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-sm font-medium px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
-              >
-                Logout
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Link
-                to="/login"
-                className="text-sm font-medium px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition hidden sm:block"
-              >
-                Login
-              </Link>
-              <Link
-                to="/register"
-                className="text-sm font-medium px-4 py-1.5 rounded-full text-white transition hover:opacity-90"
-                style={{ backgroundColor: '#FF5200' }}
-              >
-                Sign Up
-              </Link>
-            </div>
-          )}
-
-          {/* Cart Button */}
-          <Link to="/cart" className="flex-shrink-0">
-            <div
-              className="flex items-center gap-2 text-white px-4 py-2 rounded-full transition-all hover:opacity-90 active:scale-95"
-              style={{ backgroundColor: '#FF5200' }}
-            >
-              <CartIcon />
-              <span className="font-medium text-sm hidden sm:inline">Cart</span>
-              {cartCount > 0 && (
-                <span className="bg-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center" style={{ color: '#FF5200' }}>
-                  {cartCount > 9 ? '9+' : cartCount}
-                </span>
-              )}
-            </div>
-          </Link>
+    <nav className="bg-white shadow-md px-4 py-3 flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        <Link to="/" className="flex items-center gap-2">
+          <span
+            className="text-2xl font-bold"
+            style={{ color: ORANGE }}
+          >
+            FoodRush
+          </span>
+        </Link>
+        <div className="relative ml-4">
+          <input
+            type="text"
+            placeholder="Search foods..."
+            className="pl-9 pr-3 py-1.5 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            style={{ minWidth: 180 }}
+            disabled
+          />
+          <span className="absolute left-2 top-2 text-gray-400">
+            <SearchIcon />
+          </span>
         </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <button
+          className="px-3 py-1 rounded font-medium border border-orange-500 text-orange-500 hover:bg-orange-50 transition"
+          onClick={() => navigate('/support')}
+        >
+          Support
+        </button>
+        <button
+          className="relative flex items-center px-3 py-1 rounded font-medium border border-orange-500 text-orange-500 hover:bg-orange-50 transition"
+          onClick={() => navigate('/cart')}
+        >
+          <CartIcon />
+          <span className="ml-2">Cart</span>
+          {cartItems.length > 0 && (
+            <span
+              className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5"
+              style={{ minWidth: 20, textAlign: 'center' }}
+            >
+              {cartItems.length}
+            </span>
+          )}
+        </button>
+        {isLoggedIn ? (
+          <div className="flex items-center gap-3">
+            <span className="font-medium text-gray-700 flex items-center">
+              <span className="mr-1">👤</span>
+              {user?.username}
+            </span>
+            <button
+              className="px-3 py-1 rounded font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+              onClick={() => {
+                logout();
+                navigate('/');
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link
+              to="/login"
+              className="px-3 py-1 rounded font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+            >
+              Login
+            </Link>
+            <button
+              className="px-3 py-1 rounded font-medium text-white"
+              style={{ background: ORANGE }}
+              onClick={() => navigate('/register')}
+            >
+              Sign Up
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );
