@@ -60,6 +60,14 @@ const Navbar = ({ searchQuery, setSearchQuery }) => {
             </div>
           </form>
 
+          {/* Support Button */}
+          <Link to="/support" className="flex-shrink-0 hidden sm:block">
+            <div className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 text-sm font-medium transition-all hover:bg-gray-50" style={{ borderColor: '#FF5200', color: '#FF5200' }}>
+              <span>🤖</span>
+              <span>Support</span>
+            </div>
+          </Link>
+
           {/* Cart Button */}
           <Link to="/cart" className="flex-shrink-0">
             <div

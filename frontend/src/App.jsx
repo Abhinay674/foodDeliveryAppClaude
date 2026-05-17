@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import FoodListing from './pages/FoodListing';
 import Cart from './pages/Cart';
+import Support from './pages/Support';
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,6 +27,7 @@ function App() {
               }
             />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/support" element={<Support />} />
           </Routes>
         </main>
       </BrowserRouter>

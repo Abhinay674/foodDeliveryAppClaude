@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const foodRoutes = require('./routes/foodRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const supportRoutes = require('./routes/supportRoutes');
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 
 app.use('/api/foods', foodRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/support', supportRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'FoodRush API is running!' });
