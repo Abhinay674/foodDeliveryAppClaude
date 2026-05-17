@@ -61,7 +61,7 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
         <div className="flex-shrink-0 flex items-center gap-2">
           {isLoggedIn ? (
             <>
-              <span className="hidden sm:flex items-center text-sm text-gray-600">
+              <span className="flex items-center text-sm text-gray-600">
                 👤 {user?.username}
               </span>
               <button
@@ -79,7 +79,7 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
             <>
               <Link
                 to="/login"
-                className="hidden sm:block text-sm border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 hover:bg-gray-50 transition"
+                className="text-sm border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 hover:bg-gray-50 transition"
               >
                 Login
               </Link>
