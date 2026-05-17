@@ -43,7 +43,9 @@ function intentAgent(userMessage) {
     issueType = 'delayed_order';
 
   } else if (msg.includes('wrong') || msg.includes('different') || msg.includes('instead') ||
-             msg.includes('incorrect') || msg.includes('not what i ordered') || msg.includes('ordered') && msg.includes('got')) {
+             msg.includes('incorrect') || msg.includes('not what i ordered') ||
+             msg.includes('received') || msg.includes('delivered wrong') ||
+             (msg.includes('ordered') && (msg.includes('got') || msg.includes('received') || msg.includes('but')))) {
     issueType = 'wrong_item';
 
   } else if (msg.includes('missing') || msg.includes('not received') || msg.includes('incomplete') ||
