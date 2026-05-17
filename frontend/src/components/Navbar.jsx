@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const CartIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -16,6 +17,7 @@ const SearchIcon = () => (
 
 const Navbar = ({ searchQuery, setSearchQuery }) => {
   const { cartCount } = useCart();
+  const { isLoggedIn, user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
@@ -27,6 +29,11 @@ const Navbar = ({ searchQuery, setSearchQuery }) => {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleSearch(e);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
   return (
@@ -67,6 +74,38 @@ const Navbar = ({ searchQuery, setSearchQuery }) => {
               <span>Support</span>
             </div>
           </Link>
+
+          {/* Auth Section */}
+          {isLoggedIn ? (
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <span className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 font-medium">
+                <span className="text-base">👤</span>
+                <span>{user?.username}</span>
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-sm font-medium px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link
+                to="/login"
+                className="text-sm font-medium px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition hidden sm:block"
+              >
+                Login
+              </Link>
+              <Link
+                to="/register"
+                className="text-sm font-medium px-4 py-1.5 rounded-full text-white transition hover:opacity-90"
+                style={{ backgroundColor: '#FF5200' }}
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
 
           {/* Cart Button */}
           <Link to="/cart" className="flex-shrink-0">
