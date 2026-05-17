@@ -1,36 +1,39 @@
+// frontend/src/api/api.js
+
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 10000
 });
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('API Error:', error.response?.data?.message || error.message);
-    return Promise.reject(error);
+// Attach auth token if present
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-export const fetchFoods = (params) => api.get('/api/foods', { params });
-export const fetchCategories = () => api.get('/api/foods/categories');
+// Foods
+export const fetchFoods = () => api.get('/api/foods').then((r) => r.data);
+export const fetchCategories = () => api.get('/api/foods/categories').then((r) => r.data);
 
-export const fetchCart = (sessionId) => api.get(`/api/cart/${sessionId}`);
-export const addToCart = (sessionId, item) => api.post(`/api/cart/${sessionId}`, item);
-export const updateCartItem = (sessionId, foodId, quantity) =>
-  api.put(`/api/cart/${sessionId}/${foodId}`, { quantity });
-export const removeFromCart = (sessionId, foodId) =>
-  api.delete(`/api/cart/${sessionId}/${foodId}`);
-export const clearCart = (sessionId) => api.delete(`/api/cart/${sessionId}`);
+// Cart
+export const fetchCart = () => api.get('/api/cart').then((r) => r.data);
+export const addToCart = (foodId, quantity = 1) =>
+  api.post('/api/cart', { foodId, quantity }).then((r) => r.data);
+export const updateCartItem = (foodId, quantity) =>
+  api.put(`/api/cart/${foodId}`, { quantity }).then((r) => r.data);
+export const removeFromCart = (foodId) =>
+  api.delete(`/api/cart/${foodId}`).then((r) => r.data);
+export const clearCart = () => api.delete('/api/cart').then((r) => r.data);
 
 // Auth
 export const registerUser = (data) =>
   api.post('/api/auth/register', data).then((r) => r.data);
+
 export const loginUser = (data) =>
   api.post('/api/auth/login', data).then((r) => r.data);
-
-export default api;
