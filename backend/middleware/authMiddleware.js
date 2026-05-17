@@ -1,19 +1,35 @@
+// backend/middleware/authMiddleware.js
+
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'foodrush_jwt_secret_key';
 
 exports.protect = (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'Not authorized. Please log in.' });
-    }
+  let token;
+  const authHeader = req.headers.authorization;
 
-    const token = authHeader.split(' ')[1];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: 'Not authorized, token missing',
+    });
+  }
+
+  try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = { id: decoded.id, username: decoded.username };
+    req.user = {
+      id: decoded.id,
+      username: decoded.username,
+    };
     next();
-  } catch (error) {
-    res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      message: 'Not authorized, token invalid or expired',
+    });
   }
 };
