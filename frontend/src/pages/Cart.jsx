@@ -1,215 +1,315 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-function CartItem({ item, onIncrease, onDecrease, onRemove }) {
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24"
+    stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round"
+      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
+// ─── Cart Item Row ─────────────────────────────────────────────────────────────
+
+const CartItem = ({ item }) => {
+  const { updateItem, removeItem } = useCart();
+  const [updating, setUpdating] = useState(false);
+  const [imgErr, setImgErr] = useState(false);
+
+  const FALLBACK_IMG =
+    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=150&fit=crop';
+
+  const handleQty = async (newQty) => {
+    setUpdating(true);
+    try {
+      if (newQty <= 0) await removeItem(item.foodId);
+      else await updateItem(item.foodId, newQty);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
-    <div className="flex items-center gap-4 py-4 border-b border-gray-100">
-      <img src={item.image} alt={item.name} className="w-16 h-16 rounded-xl object-cover" />
-      <div className="flex-1">
-        <div className="font-semibold text-gray-800">{item.name}</div>
-        <div className="text-xs text-gray-500">{item.category}</div>
-        <div className="mt-1 text-sm text-gray-700 font-medium">
-          ₹{Math.round(item.price * 83)}
+    <div className="flex gap-4 items-center p-4 bg-white rounded-2xl shadow-sm">
+      <img
+        src={imgErr ? FALLBACK_IMG : item.image}
+        alt={item.title}
+        onError={() => setImgErr(true)}
+        className="w-20 h-20 rounded-xl object-cover flex-shrink-0"
+      />
+
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold text-gray-800 text-sm leading-snug truncate">
+          {item.title}
+        </h3>
+        <p className="text-gray-400 text-xs mt-0.5">
+          ₹{Math.round(item.price * 83)} each
+        </p>
+
+        <div className="flex items-center justify-between mt-3">
+          {/* Quantity controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleQty(item.quantity - 1)}
+              disabled={updating}
+              aria-label="Decrease quantity"
+              className="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-lg
+                         transition hover:bg-orange-50 disabled:opacity-40"
+              style={{ borderColor: '#FF5200', color: '#FF5200' }}
+            >
+              −
+            </button>
+            <span className="w-5 text-center text-sm font-semibold text-gray-800">
+              {updating ? '·' : item.quantity}
+            </span>
+            <button
+              onClick={() => handleQty(item.quantity + 1)}
+              disabled={updating}
+              aria-label="Increase quantity"
+              className="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-lg
+                         transition hover:bg-orange-50 disabled:opacity-40"
+              style={{ borderColor: '#FF5200', color: '#FF5200' }}
+            >
+              +
+            </button>
+          </div>
+
+          {/* Line total + remove */}
+          <div className="flex items-center gap-3">
+            <span className="font-bold text-gray-800 text-sm">
+              ₹{Math.round(item.price * item.quantity * 83)}
+            </span>
+            <button
+              onClick={() => removeItem(item.foodId)}
+              aria-label="Remove item"
+              className="text-red-300 hover:text-red-500 transition"
+            >
+              <TrashIcon />
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-bold flex items-center justify-center text-lg"
-          onClick={() => onDecrease(item)}
-          disabled={item.quantity <= 1}
-        >
-          -
-        </button>
-        <span className="w-6 text-center">{item.quantity}</span>
-        <button
-          className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-lg"
-          onClick={() => onIncrease(item)}
-        >
-          +
-        </button>
-        <button
-          className="ml-2 text-gray-400 hover:text-red-500 transition"
-          onClick={() => onRemove(item)}
-          title="Remove"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path
-              d="M6 19a2 2 0 002 2h8a2 2 0 002-2V7H6v12zM19 7V5a2 2 0 00-2-2H7a2 2 0 00-2 2v2"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
       </div>
     </div>
   );
-}
+};
+
+// ─── Main Cart Page ───────────────────────────────────────────────────────────
 
 export default function Cart() {
+  const { cart, loading, cartTotal, emptyCart } = useCart();
   const { isLoggedIn } = useAuth();
-  const {
-    cart,
-    updateCartItem,
-    removeFromCart,
-    clearCart,
-    cartCount,
-  } = useCart();
   const navigate = useNavigate();
 
-  const [promo, setPromo] = useState('');
+  const [promo, setPromo]               = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [promoError, setPromoError]     = useState('');
+  const [ordered, setOrdered]           = useState(false);
 
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.price * 83 * item.quantity,
-    0
-  );
-  const deliveryFee = cart.length > 0 ? 249 : 0;
-  const gst = Math.round((subtotal + deliveryFee) * 0.05);
-  const grandTotal = subtotal + deliveryFee + gst - (promoApplied ? 100 : 0);
+  const items = cart?.items ?? [];
 
-  const handleIncrease = item => {
-    updateCartItem(item._id, item.quantity + 1);
-  };
+  const subtotal    = cartTotal;                           // already in USD from context
+  const deliveryFee = items.length > 0 ? 2.99 : 0;
+  const gst         = subtotal * 0.05;
+  const discount    = promoApplied ? 1.2 : 0;             // ~₹100 equivalent
+  const grandTotal  = subtotal + deliveryFee + gst - discount;
 
-  const handleDecrease = item => {
-    if (item.quantity > 1) {
-      updateCartItem(item._id, item.quantity - 1);
-    }
-  };
+  const fmt = (usd) => `₹${Math.round(usd * 83)}`;
 
-  const handleRemove = item => {
-    removeFromCart(item._id);
-  };
-
-  const handleApplyPromo = e => {
+  const handleApplyPromo = (e) => {
     e.preventDefault();
-    if (promo.trim().toLowerCase() === 'foodrush100') {
+    if (promo.trim().toUpperCase() === 'FOODRUSH100') {
       setPromoApplied(true);
+      setPromoError('');
+    } else {
+      setPromoError('Invalid promo code.');
     }
   };
 
-  const handleOrder = () => {
-    clearCart();
-    setOrderSuccess(true);
+  const handlePlaceOrder = async () => {
+    if (!isLoggedIn) {
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
+    await emptyCart();
+    setOrdered(true);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 py-8 px-4 flex justify-center">
-      <div className="w-full max-w-4xl flex flex-col md:flex-row gap-8">
-        <div className="flex-1 bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Your Cart</h2>
-          {cart.length === 0 && !orderSuccess && (
-            <div className="flex flex-col items-center justify-center py-16">
-              <span className="text-5xl mb-4">🛒</span>
-              <div className="text-gray-500 mb-2">Your cart is empty.</div>
-              <Link
-                to="/foods"
-                className="mt-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full transition text-sm"
-              >
-                Browse Foods
-              </Link>
-            </div>
-          )}
-          {orderSuccess && (
-            <div className="flex flex-col items-center justify-center py-16">
-              <span className="text-5xl mb-4">🎉</span>
-              <div className="text-green-700 font-semibold mb-2">Order placed successfully!</div>
-              <Link
-                to="/foods"
-                className="mt-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full transition text-sm"
-              >
-                Order More
-              </Link>
-            </div>
-          )}
-          {!orderSuccess && cart.length > 0 && (
-            <div>
-              {cart.map(item => (
-                <CartItem
-                  key={item._id}
-                  item={item}
-                  onIncrease={handleIncrease}
-                  onDecrease={handleDecrease}
-                  onRemove={handleRemove}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Order Summary */}
-        <div className="w-full md:w-80 bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4">
-          <h3 className="text-lg font-bold text-gray-800 mb-2">Order Summary</h3>
-          <div className="flex justify-between text-sm text-gray-700">
-            <span>Subtotal</span>
-            <span>₹{subtotal}</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-700">
-            <span>Delivery Fee</span>
-            <span>₹{deliveryFee}</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-700">
-            <span>GST (5%)</span>
-            <span>₹{gst}</span>
-          </div>
-          {promoApplied && (
-            <div className="flex justify-between text-sm text-green-700 font-semibold">
-              <span>Promo Applied</span>
-              <span>-₹100</span>
-            </div>
-          )}
-          <form onSubmit={handleApplyPromo} className="flex gap-2 mt-2">
-            <input
-              type="text"
-              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
-              placeholder="Promo code"
-              value={promo}
-              onChange={e => setPromo(e.target.value)}
-              disabled={promoApplied}
-            />
-            <button
-              type="submit"
-              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-xl text-sm transition disabled:bg-orange-300"
-              disabled={promoApplied || !promo.trim()}
-            >
-              {promoApplied ? 'Applied' : 'Apply'}
-            </button>
-          </form>
-          <div className="border-t border-gray-100 my-2"></div>
-          <div className="flex justify-between text-lg font-bold text-gray-800">
-            <span>Total</span>
-            <span>₹{grandTotal}</span>
-          </div>
-          {!isLoggedIn && cart.length > 0 && (
-            <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-sm text-orange-700 mb-2">
-              Please log in to place an order
-            </div>
-          )}
+  // ── Loading ──
+  if (loading) return <LoadingSpinner message="Loading your cart…" />;
+
+  // ── Order success ──
+  if (ordered) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-10 text-center max-w-sm w-full">
+          <div className="text-6xl mb-4">🎉</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Order Placed!</h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Your food is being prepared and will arrive soon.
+          </p>
           <button
-            className={`w-full mt-2 py-3 rounded-xl text-white font-semibold text-sm transition ${
-              cart.length === 0
-                ? 'bg-gray-200 cursor-not-allowed'
-                : isLoggedIn
-                ? 'bg-orange-500 hover:bg-orange-600'
-                : 'bg-orange-400 hover:bg-orange-500'
-            }`}
-            disabled={cart.length === 0}
-            onClick={() => {
-              if (!isLoggedIn) {
-                navigate('/login', { state: { from: '/cart' } });
-              } else {
-                handleOrder();
-              }
-            }}
+            onClick={() => { setOrdered(false); navigate('/'); }}
+            className="w-full py-3 rounded-full text-white font-semibold transition hover:opacity-90"
+            style={{ backgroundColor: '#FF5200' }}
           >
-            {isLoggedIn
-              ? `Place Order · ₹${grandTotal}`
-              : 'Login to Place Order'}
+            Back to Home
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Empty cart ──
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-10 text-center max-w-sm w-full">
+          <div className="text-6xl mb-4">🛒</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Your cart is empty</h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Looks like you haven't added anything yet.
+          </p>
+          <Link
+            to="/foods"
+            className="inline-block w-full py-3 rounded-full text-white font-semibold text-center transition hover:opacity-90"
+            style={{ backgroundColor: '#FF5200' }}
+          >
+            Browse Menu
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Cart with items ──
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">
+            Your Cart
+            <span className="ml-2 text-base font-normal text-gray-400">
+              ({items.length} item{items.length !== 1 ? 's' : ''})
+            </span>
+          </h1>
+          <button
+            onClick={emptyCart}
+            className="text-sm text-red-400 hover:text-red-500 font-medium transition"
+          >
+            Clear All
+          </button>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+
+          {/* ── Items list ── */}
+          <div className="flex-1 flex flex-col gap-3">
+            {items.map((item) => (
+              <CartItem key={item.foodId ?? item._id} item={item} />
+            ))}
+            <Link
+              to="/foods"
+              className="text-center text-sm font-medium mt-1 block hover:underline"
+              style={{ color: '#FF5200' }}
+            >
+              + Add more items
+            </Link>
+          </div>
+
+          {/* ── Order summary panel ── */}
+          <div className="lg:w-80">
+            <div className="bg-white rounded-2xl shadow-sm p-5 sticky top-20">
+              <h2 className="font-bold text-gray-800 text-lg mb-4">Order Summary</h2>
+
+              {/* Price breakdown */}
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal</span>
+                  <span>{fmt(subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Delivery Fee</span>
+                  <span>{fmt(deliveryFee)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>GST (5%)</span>
+                  <span>{fmt(gst)}</span>
+                </div>
+                {promoApplied && (
+                  <div className="flex justify-between text-green-600 font-medium">
+                    <span>Promo (FOODRUSH100)</span>
+                    <span>−{fmt(discount)}</span>
+                  </div>
+                )}
+                <div className="border-t pt-3 flex justify-between font-bold text-gray-800 text-base">
+                  <span>Total</span>
+                  <span>{fmt(grandTotal)}</span>
+                </div>
+              </div>
+
+              {/* Promo code */}
+              {!promoApplied && (
+                <form onSubmit={handleApplyPromo} className="mt-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={promo}
+                      onChange={(e) => { setPromo(e.target.value); setPromoError(''); }}
+                      placeholder="Promo code"
+                      className="flex-1 border border-gray-200 rounded-full px-3 py-1.5 text-sm
+                                 focus:outline-none focus:border-orange-300 transition"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!promo.trim()}
+                      className="px-4 py-1.5 rounded-full text-sm font-medium border-2 transition
+                                 hover:bg-orange-50 disabled:opacity-40"
+                      style={{ borderColor: '#FF5200', color: '#FF5200' }}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  {promoError && (
+                    <p className="text-red-500 text-xs mt-1.5">{promoError}</p>
+                  )}
+                </form>
+              )}
+
+              {/* Login nudge */}
+              {!isLoggedIn && (
+                <div className="mt-4 p-3 bg-orange-50 border border-orange-100 rounded-xl
+                                text-sm text-orange-700 text-center">
+                  Please log in to place your order
+                </div>
+              )}
+
+              {/* Place Order / Login button */}
+              <button
+                onClick={handlePlaceOrder}
+                className="w-full mt-4 py-3.5 rounded-full text-white font-semibold text-sm
+                           transition hover:opacity-90 active:scale-95 shadow-md"
+                style={{ backgroundColor: '#FF5200' }}
+              >
+                {isLoggedIn
+                  ? `Place Order · ${fmt(grandTotal)}`
+                  : 'Login to Place Order'}
+              </button>
+
+              {isLoggedIn && (
+                <p className="text-xs text-gray-400 text-center mt-3">
+                  🔒 Safe & secure checkout
+                </p>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
