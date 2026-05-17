@@ -92,7 +92,7 @@ exports.login = async (req, res) => {
 
     const user = await User.findOne({ username: username.trim() });
     if (!user) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
         message: 'Invalid username or password',
       });
@@ -100,7 +100,7 @@ exports.login = async (req, res) => {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
         message: 'Invalid username or password',
       });
